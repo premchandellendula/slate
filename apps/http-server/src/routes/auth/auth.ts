@@ -1,13 +1,8 @@
 import express, { Router } from 'express';
 const router: Router = express.Router()
-import zod from 'zod'
 import bcrypt from 'bcrypt';
-
-const signupBody = zod.object({
-    name: zod.string(),
-    email: zod.email(),
-    password: zod.string().min(6)
-})
+import { signinBody, signupBody } from '@repo/common/types'
+import { prisma } from '@repo/db'
 
 router.post('/signup', async (req, res) => {
     const response = signupBody.safeParse(req.body)
@@ -24,18 +19,19 @@ router.post('/signup', async (req, res) => {
     try {
         const hashedPassword = await bcrypt.hash(password, 10)
 
-        
+        const user = await prisma.user.create({
+            data: {
+                name,
+                email,
+                password: hashedPassword
+            }
+        })      
     }catch(err) {
         res.status(500).json({
             message: "Error creating user",
             error: err instanceof Error ? err.message : "Unknown error",
         })
     }
-})
-
-const signinBody = zod.object({
-    email: zod.email(),
-    password: zod.string().min(6)
 })
 
 router.post('/signin', async (req, res) => {
