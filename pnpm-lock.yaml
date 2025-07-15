@@ -33,6 +33,12 @@ importers:
         specifier: ^4.0.5
         version: 4.0.5
     devDependencies:
+      '@repo/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@repo/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
@@ -107,6 +113,16 @@ importers:
       '@types/jsonwebtoken':
         specifier: ^9.0.10
         version: 9.0.10
+
+  packages/common:
+    dependencies:
+      zod:
+        specifier: ^4.0.5
+        version: 4.0.5
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
 
   packages/db:
     dependencies:
