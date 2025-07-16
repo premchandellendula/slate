@@ -1,8 +1,9 @@
 import express, { Router } from 'express';
 const router: Router = express.Router()
 import bcrypt from 'bcrypt';
-import { signinBody, signupBody } from '@repo/common/types'
-import { prisma } from '@repo/db'
+import { prisma } from '@repo/db';
+import jwt from 'jsonwebtoken';
+import { signinBody, signupBody } from '@repo/common/types';
 
 router.post('/signup', async (req, res) => {
     const response = signupBody.safeParse(req.body)
@@ -25,7 +26,34 @@ router.post('/signup', async (req, res) => {
                 email,
                 password: hashedPassword
             }
-        })      
+        }) 
+        
+        if(!user){
+            throw new Error("Failed to create user")
+        }
+
+        const JWT_SECRET = process.env.JWT_SECRET;
+        if(!JWT_SECRET){
+            throw new Error("JWT_SECRET not defined")
+        }
+
+        const token = jwt.sign({userId: user.id}, JWT_SECRET, {expiresIn: "2d"})
+
+        res.cookie("token", token, {
+            httpOnly: true,
+            maxAge: 1000 * 60 * 60 * 24 * 2, // 2 days
+            sameSite: "lax",
+            secure: false
+        })
+
+        res.status(201).json({
+            message: "User created successfully",
+            data: {
+                id: user.id,
+                name: user.name,
+                email: user.email
+            }
+        })
     }catch(err) {
         res.status(500).json({
             message: "Error creating user",
@@ -47,7 +75,47 @@ router.post('/signin', async (req, res) => {
     const { email, password } = response.data
 
     try{
+        const user = await prisma.user.findUnique({
+            where: {
+                email
+            }
+        })
 
+        if(!user){
+            throw new Error("User not found")
+            return;
+        }
+
+        const isPasswordValid = await bcrypt.compare(user.password, password)
+
+        if(!isPasswordValid){
+            res.status(400).json({
+                message: "Incorrect password"
+            })
+        }
+
+        const JWT_SECRET = process.env.JWT_SECRET;
+        if(!JWT_SECRET){
+            throw new Error("JWT_SECRET not defined")
+        }
+
+        const token = jwt.sign({userId: user.id}, JWT_SECRET, {expiresIn: "2d"})
+
+        res.cookie("token", token, {
+            httpOnly: true,
+            maxAge: 1000 * 60 * 60 * 24 * 2, // 2 days
+            sameSite: "lax",
+            secure: false
+        })
+
+        res.status(200).json({
+            message: "User signed in successfully",
+            data: {
+                id: user.id,
+                name: user.name,
+                email: user.email
+            }
+        })
     }catch(err){
         res.status(500).json({
             message: "Error creating user",

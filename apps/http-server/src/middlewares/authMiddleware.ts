@@ -4,12 +4,12 @@ import jwt, { JwtPayload } from 'jsonwebtoken';
 declare global {
     namespace Express {
         interface Request {
-            userId?: string;
+            userId: string;
         }
     }
 }
 
-async function authMiddleware(req: Request, res: Response, next: NextFunction){
+export async function authMiddleware(req: Request, res: Response, next: NextFunction){
     const authHeader = req.headers.authorization
 
     if(!authHeader || !authHeader.startsWith("Bearer ")){
