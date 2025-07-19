@@ -10,15 +10,9 @@ declare global {
 }
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction){
-    const authHeader = req.headers.authorization
-
-    if(!authHeader || !authHeader.startsWith("Bearer ")){
-        res.status(401).json({
-            message: "Token in not valid"
-        })
-    }
-
-    const token = authHeader?.split(" ")[1]
+    // console.log(req);
+    const token = req.cookies.token
+    // console.log(token)
     if(!token){
         res.status(401).json({
             message: "Token is missing"

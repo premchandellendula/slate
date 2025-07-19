@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import { prisma } from '@repo/db';
 import jwt from 'jsonwebtoken';
 import { signinBody, signupBody } from '@repo/common/types';
+import { authMiddleware } from '../../middlewares/authMiddleware';
 
 router.post('/signup', async (req, res) => {
     const response = signupBody.safeParse(req.body)
@@ -86,7 +87,7 @@ router.post('/signin', async (req, res) => {
             return;
         }
 
-        const isPasswordValid = await bcrypt.compare(user.password, password)
+        const isPasswordValid = await bcrypt.compare(password, user.password)
 
         if(!isPasswordValid){
             res.status(400).json({
@@ -122,5 +123,11 @@ router.post('/signin', async (req, res) => {
             error: err instanceof Error ? err.message : "Unknown err"
         })
     }
+})
+
+router.get('/get-token', authMiddleware, async (req, res) => {
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({ error: "Not authenticated" });
+    res.json({ token });
 })
 export default router;
