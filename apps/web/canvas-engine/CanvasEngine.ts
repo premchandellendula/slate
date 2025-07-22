@@ -14,6 +14,9 @@ export class CanvasEngine{
     private clicked: boolean
     private token: string | null;
     private socket: WebSocket | null = null;
+    private activeTextArea: HTMLTextAreaElement | null = null;
+    private activeTextPosition: { x: number; y: number } | null = null;
+
     constructor(
         canvas: HTMLCanvasElement, 
         boardId: string,
@@ -49,7 +52,7 @@ export class CanvasEngine{
             // console.log("Connection already exists.")
         }
 
-        const url = `${WS_URL}?token=`
+        const url = `${WS_URL}?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxMDQ0N2U0NS04ZTgwLTQ3MGEtYmZiZS05YzNiNGZkYjZmODIiLCJpYXQiOjE3NTMwODI5OTgsImV4cCI6MTc1MzI1NTc5OH0.-ee7VE7YNXMUqsNSoCubQ-X2a1t70dUlPszJ1n8GYx4`
         this.socket = new WebSocket(url);
 
         this.socket.onopen = () => {
@@ -88,13 +91,21 @@ export class CanvasEngine{
         this.canvas.addEventListener("mousemove", this.mouseMoveHandler)
     }
 
-    mouseDownHandler = (e) => {
+    mouseDownHandler = (e: MouseEvent) => {
         this.clicked = true
         this.startX = e.clientX
         this.startY = e.clientY
+        const x = e.clientX;
+        const y = e.clientY;
+
+        if(this.activeTool === "text"){
+            this.clicked = false;
+            this.handleText(e);
+            return;
+        }
     }
 
-    mouseUpHandler = (e) => {
+    mouseUpHandler = (e: MouseEvent) => {
         this.clicked = false
         const width = e.clientX - this.startX;
         const height = e.clientY - this.startY;
@@ -117,6 +128,30 @@ export class CanvasEngine{
                 radiusX: Math.abs(width / 2),
                 radiusY: Math.abs(height / 2)
             }
+        }else if(this.activeTool === "line"){
+            shape = {
+                type: "line",
+                startX: this.startX,
+                startY: this.startY,
+                endX: e.clientX,
+                endY: e.clientY
+            }
+        }else if(this.activeTool === "arrow"){
+            shape = {
+                type: "arrow",
+                startX: this.startX,
+                startY: this.startY,
+                endX: e.clientX,
+                endY: e.clientY
+            }
+        }else if(this.activeTool === "diamond"){
+            shape = {
+                type: "diamond",
+                centreX: this.startX + (width / 2),
+                centreY: this.startY + (height / 2),
+                distX: width / 2,
+                distY: height / 2
+            }
         }
 
         if (!shape) {
@@ -134,7 +169,7 @@ export class CanvasEngine{
         }))
     }
 
-    mouseMoveHandler = (e) => {
+    mouseMoveHandler = (e: MouseEvent) => {
         if(this.clicked){
             const width = e.clientX - this.startX;
             const height = e.clientY - this.startY;
@@ -153,6 +188,46 @@ export class CanvasEngine{
                 this.ctx.ellipse(centreX, centreY, radiusX, radiusY, 0, 0, 2 * Math.PI);
                 this.ctx.stroke();
                 this.ctx.closePath();                
+            }else if (activeTool === "line") {
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.startX, this.startY);
+                this.ctx.lineTo(e.clientX, e.clientY);
+                this.ctx.stroke();
+                this.ctx.closePath();                
+            }else if (activeTool === "arrow") {
+                const angle = Math.atan2(e.clientY - this.startY, e.clientX - this.startX);
+                const arrowLength = 10
+
+                const arrowX1 = e.clientX - arrowLength * Math.cos(angle - Math.PI / 6);
+                const arrowY1 = e.clientY - arrowLength * Math.sin(angle - Math.PI / 6);
+                const arrowX2 = e.clientX - arrowLength * Math.cos(angle + Math.PI / 6);
+                const arrowY2 = e.clientY - arrowLength * Math.sin(angle + Math.PI / 6);
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.startX, this.startY);
+                this.ctx.lineTo(e.clientX, e.clientY);
+                this.ctx.stroke()
+
+                this.ctx.beginPath()
+                this.ctx.moveTo(e.clientX, e.clientY);
+                this.ctx.lineTo(arrowX1, arrowY1);
+                this.ctx.moveTo(e.clientX, e.clientY);
+                this.ctx.lineTo(arrowX2, arrowY2);
+                this.ctx.stroke();
+                this.ctx.closePath();
+            }else if(this.activeTool === "diamond"){
+                const centreX = this.startX + (width / 2);
+                const centreY = this.startY + (height / 2);
+
+                const halfWidth = width / 2;
+                const halfHeight = height / 2; 
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(centreX, centreY - halfHeight);      // Top
+                this.ctx.lineTo(centreX + halfWidth, centreY);      // Right
+                this.ctx.lineTo(centreX, centreY + halfHeight);      // Bottom
+                this.ctx.lineTo(centreX - halfWidth, centreY);      // Left
+                this.ctx.closePath();
+                this.ctx.stroke();
             }
         }
     }
@@ -173,10 +248,53 @@ export class CanvasEngine{
             if (shape.type === "rectangle") {
                 this.ctx.strokeStyle = "rgba(255, 255, 255)"
                 this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
-            } else if (shape.type === "ellipse") {                
+            }else if (shape.type === "ellipse") {                
                 this.ctx.beginPath();
                 this.ctx.ellipse(shape.centreX, shape.centreY, shape.radiusX, shape.radiusY, Math.PI / 4, 0, 2 * Math.PI);
                 this.ctx.stroke();
+            }else if (shape.type === "line") {                
+                this.ctx.beginPath();
+                this.ctx.moveTo(shape.startX, shape.startY);
+                this.ctx.lineTo(shape.endX, shape.endY);
+                this.ctx.stroke();
+            }else if (shape.type === "arrow") {                
+                const angle = Math.atan2(shape.endY - shape.startY, shape.endX - shape.startX);
+                const arrowLength = 10
+
+                const arrowX1 = shape.endX - arrowLength * Math.cos(angle - Math.PI / 6);
+                const arrowY1 = shape.endY - arrowLength * Math.sin(angle - Math.PI / 6);
+                const arrowX2 = shape.endX - arrowLength * Math.cos(angle + Math.PI / 6);
+                const arrowY2 = shape.endY - arrowLength * Math.sin(angle + Math.PI / 6);
+                this.ctx.beginPath();
+                this.ctx.moveTo(shape.startX, shape.startY);
+                this.ctx.lineTo(shape.endX, shape.endY);
+                this.ctx.stroke()
+
+                this.ctx.beginPath()
+                this.ctx.moveTo(shape.endX, shape.endY);
+                this.ctx.lineTo(arrowX1, arrowY1);
+                this.ctx.moveTo(shape.endX, shape.endY);
+                this.ctx.lineTo(arrowX2, arrowY2);
+                this.ctx.stroke();
+                this.ctx.closePath();
+            }else if(shape.type === "diamond"){
+                this.ctx.beginPath();
+                this.ctx.moveTo(shape.centreX, shape.centreY - shape.distY);      // Top
+                this.ctx.lineTo(shape.centreX + shape.distX, shape.centreY);      // Right
+                this.ctx.lineTo(shape.centreX, shape.centreY + shape.distY);      // Bottom
+                this.ctx.lineTo(shape.centreX - shape.distX, shape.centreY);      // Left
+                this.ctx.closePath();
+                this.ctx.stroke();
+            }else if(shape.type === "text"){
+                this.ctx.font = "18px Times New Roman, serif";
+                this.ctx.fillStyle = "white";
+                this.ctx.textBaseline = "top";
+
+                const lineHeight = 27;
+                const lines = shape.text.split("\n");
+                lines.forEach((line, index) => {
+                    this.ctx.fillText(line, shape.x, shape.y + index * lineHeight);
+                });    
             }
         })
     }
@@ -184,6 +302,99 @@ export class CanvasEngine{
     setShape(shape: Shape){
         this.selectedShape = shape
     }
+
+    private handleText(e: MouseEvent) {
+        e.stopPropagation();
+        e.preventDefault();
+        const x = e.clientX;
+        const y = e.clientY;
+        // alert(x)
+        // alert(y)
+        
+        const canvasRect = this.canvas.getBoundingClientRect();
+        const canvasX = x - canvasRect.left;
+        const canvasY = y - canvasRect.top;
+        // alert(canvasX)
+        // alert(canvasY)
+
+        const textarea = document.createElement("textarea");
+        this.activeTextArea = textarea;
+        this.activeTextPosition = { x: canvasX, y: canvasY };
+        textarea.value = "";
+        // alert(textarea.value)
+        
+        Object.assign(textarea.style, {
+            position: "absolute",
+            top: `${canvasRect.top + canvasY}px`,
+            left: `${canvasRect.left + canvasX}px`,
+            font: "16px Times New Roman, serif",
+            color: "white",
+            background: "#111", // like bg-neutral-900
+            border: "0.5px dashed #e5e5e5",
+            outline: "none",
+            boxSizing: "border-box",
+            padding: "2px",
+            resize: "none",
+            overflow: "hidden",
+            minWidth: "100px",
+            minHeight: "30px",
+            zIndex: "9999",
+        });
+        
+        textarea.style.left = `${canvasRect.left + canvasX}px`;
+        textarea.style.top = `${canvasRect.top + canvasY}px`;
+        document.body.appendChild(textarea);
+        textarea.focus();
+
+        const finalizeText = () => {
+            const value = textarea.value.trim();
+            if (value) {
+                this.ctx.font = "18px Times New Roman, serif";
+                this.ctx.fillStyle = "white";
+                this.ctx.textBaseline = "top";
+
+                const lines = value.split("\n");
+                const lineHeight = 27;
+                lines.forEach((line, index) => {
+                    this.ctx.fillText(line, canvasX, canvasY + index * lineHeight);
+                });
+
+                const newShape: Shape = {
+                    type: "text",
+                    x: canvasX,
+                    y: canvasY,
+                    width: textarea.offsetWidth,
+                    height: textarea.offsetHeight,
+                    text: value,
+                };
+
+                if (!newShape) {
+                    return;
+                }
+                this.existingShapes.push(newShape)
+                this.socket?.send(JSON.stringify({
+                    type: "chat",
+                    message: JSON.stringify({
+                        shape: newShape
+                    }),
+                    roomId: this.boardId
+                }))
+                this.clearCanvas();
+            }
+
+            textarea.remove();
+            this.activeTextArea = null;
+        };
+
+        textarea.addEventListener("blur", finalizeText);
+        textarea.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                textarea.blur();
+            }
+        });
+    }
+
 
     rectange(
         x: number,
@@ -195,184 +406,36 @@ export class CanvasEngine{
     }
 }
 
-// type Shape = {
-//     type: "rectangle",
-//     x: number,
-//     y: number,
-//     width: number,
-//     height: number
-// } | {
-//     type: "circle",
-//     x: number,
-//     y: number,
-//     radius: number,
-//     startAngle: number,
-//     endAngle: number
-// } | {
-//     type: "line",
-//     x: number,
-//     y: number,
-//     endX: number,
-//     endY: number
-// }
+/*
+canvas = document.getElementById('canvas');
+   context = canvas.getContext('2d');
+   canvas.width = 780;
+   canvas.height = 490;
+   context.strokeStyle = "#000";
+   context.lineWidth = 4;
+   
+   canvas.onmousedown = startDrawing;
+   canvas.onmouseup = stopDrawing;
+   canvas.onmousemove = draw;
+   
+   function startDrawing(e) {
+      isDrawing = true;
+      context.beginPath();
+      context.moveTo(e.pageX - canvas.offsetLeft, e.pageY - canvas.offsetTop);
+   }
+   
+   function draw(e) {
+      if (isDrawing == true) {
+         var x = e.pageX - canvas.offsetLeft;
+         var y = e.pageY - canvas.offsetTop;
+      
+         context.lineTo(x, y);
+         context.stroke();
+      }
+   }
+   
+   function stopDrawing() {
+      isDrawing = false;
+   }
 
-// type ShapeName = "rectangle" | "circle" | "line";
-
-// export function CanvasEngine(canvas: HTMLCanvasElement, boardId: string, shape: ShapeName){
-//     const ctx = canvas.getContext("2d")
-//     let existingShapes: Shape[] = []
-//     if(!ctx){
-//         return;
-//     }
-
-//     ctx.fillStyle = "rgb(0,0,0)"
-//     ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-//     if(shape === "rectangle"){
-//         let clicked = false;
-//         let startX = 0;
-//         let startY = 0;
-//         canvas.addEventListener("mousedown", (e) => {
-//             clicked = true;
-//             startX = e.clientX
-//             startY = e.clientY
-//         })
-
-//         canvas.addEventListener("mouseup", (e) => {
-//             clicked = false;
-//             const width = e.clientX - startX
-//             const height = e.clientY - startY
-
-//             existingShapes.push({
-//                 type: "rectangle",
-//                 x: startX,
-//                 y: startY,
-//                 width,
-//                 height
-//             })
-//         })
-
-//         canvas.addEventListener("mousemove", (e) => {
-//             if(clicked){
-//                 const width = e.clientX - startX
-//                 const height = e.clientY - startY
-//                 clearCanvas(existingShapes, ctx, canvas, shape)
-//                 ctx.strokeStyle = "rgb(255, 255, 255)"
-//                 ctx.strokeRect(startX, startY, width, height)
-//             }
-//         })
-//     }else if(shape === "circle"){
-//         let clicked = false;
-//         let startX = 0;
-//         let startY = 0;
-//         const startAngle = 0;
-//         const endAngle = 2 * Math.PI;
-//         canvas.addEventListener("mousedown", (e) => {
-//             clicked = true;
-//             startX = e.clientX
-//             startY = e.clientY
-//         })
-
-//         canvas.addEventListener("mouseup", (e) => {
-//             clicked = false;
-//             const width = e.clientX - startX
-
-//             existingShapes.push({
-//                 type: "circle",
-//                 x: startX,
-//                 y: startY,
-//                 radius: width / 2,
-//                 startAngle,
-//                 endAngle
-//             })
-//         })
-
-//         canvas.addEventListener("mousemove", (e) => {
-//             if(clicked){
-//                 const width = e.clientX - startX
-//                 const height = e.clientY - startY
-//                 clearCanvas(existingShapes, ctx, canvas, shape)
-//                 ctx.strokeStyle = "rgb(255, 255, 255)"
-//                 const centreX = startX + width / 2;
-//                 const centreY = startY + height / 2;
-//                 const radius = Math.max(width, height) / 2
-//                 ctx.beginPath();
-//                 ctx.arc(centreX,centreY,radius,0,2*Math.PI);
-//                 ctx.stroke();
-//                 ctx.closePath();
-//             }
-//         })
-//     }else if(shape === "line"){
-//         let clicked = false;
-//         let startX = 0;
-//         let startY = 0;
-//         canvas.addEventListener("mousedown", (e) => {
-//             clicked = true;
-//             startX = e.clientX
-//             startY = e.clientY
-//         })
-
-//         canvas.addEventListener("mouseup", (e) => {
-//             clicked = false;
-//             const width = e.clientX - startX
-//             const height = e.clientY - startY
-
-//             existingShapes.push({
-//                 type: "line",
-//                 x: startX,
-//                 y: startY,
-//                 endX: width,
-//                 endY: height
-//             })
-//         })
-
-//         canvas.addEventListener("mousemove", (e) => {
-//             if(clicked){
-//                 const width = e.clientX - startX
-//                 const height = e.clientY - startY
-//                 clearCanvas(existingShapes, ctx, canvas, shape)
-//                 ctx.strokeStyle = "rgb(255, 255, 255)"
-
-                
-//                 ctx.beginPath();
-
-//                 // Set a start-point
-//                 ctx.moveTo(startX,startY);
-
-//                 // Set an end-point
-//                 ctx.lineTo(width,height);
-
-//                 // Draw it
-//                 ctx.stroke();
-//             }
-//         })
-//     }
-    
-    
-// }
-
-// function clearCanvas(existingShapes: Shape[], ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, shape: ShapeName){
-//     ctx.clearRect(0, 0, canvas.width, canvas.height)
-//     ctx.fillStyle = "rgb(0,0,0)"
-//     ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-//     existingShapes.map(shape => {
-//         if(shape.type === "rectangle"){
-//             ctx.strokeStyle = "rgb(255, 255, 255)"
-//             ctx.strokeRect(shape.x, shape.y, shape.width, shape.height)
-//         }else if(shape.type === "circle"){
-//             ctx.beginPath();
-//             ctx.arc(shape.x, shape.y, shape.radius, shape.startAngle, shape.endAngle);
-//             ctx.stroke()
-//         }else if(shape.type === "line"){
-//             ctx.beginPath();
-//             ctx.moveTo(shape.x,shape.y);
-
-//                 // Set an end-point
-//             ctx.lineTo(shape.endX,shape.endY);
-
-//             // Draw it
-//             ctx.stroke();
-//         }
-//     })
-// }
+*/
