@@ -104,5 +104,28 @@ wss.on('connection', (ws, request) => {
                 }
             })
         }
+
+        if(parsedData.type === "eraser"){
+            // console.log(parsedData.roomId)
+            // console.log(parsedData.shapeId)
+            const { roomId, shapeId } = parsedData
+            await prisma.shape.delete({
+                where: {
+                    id: shapeId,
+                    roomId: Number(roomId)
+                }
+            })
+
+            users.forEach(user => {
+                if (user.rooms.includes(roomId)) {
+                    user.ws.send(JSON.stringify({
+                        type: "delete-shape",
+                        shapeId,
+                        roomId
+                    }));
+                }
+            });
+
+        }
     })
 })

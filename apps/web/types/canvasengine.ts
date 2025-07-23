@@ -18,36 +18,42 @@ export type Tool = {
 };
 
 export type Shape = {
+    id: string,
     type: "rectangle",
     x: number,
     y: number,
     width: number,
     height: number
 } | {
+    id: string,
     type: "ellipse",
     centreX: number,
     centreY: number,
     radiusX: number,
     radiusY: number
 } | {
+    id: string,
     type: "line",
     startX: number,
     startY: number,
     endX: number,
     endY: number
 } | {
+    id: string,
     type: "arrow",
     startX: number,
     startY: number,
     endX: number,
     endY: number
 } | {
+    id: string,
     type: "diamond",
     centreX: number,
     centreY: number,
     distX: number,
     distY: number
 } | {
+    id: string,
     type: "text",
     x: number,
     y: number,
@@ -55,6 +61,8 @@ export type Shape = {
     height: number,
     text: string
 } | {
+    id: string,
     type: "draw",
-    points?: { x: number; y: number }[];
+    points: { x: number; y: number }[];
 }
+
