@@ -54,7 +54,7 @@ export class CanvasEngine{
             // console.log("Connection already exists.")
         }
 
-        const url = `${WS_URL}?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxMDQ0N2U0NS04ZTgwLTQ3MGEtYmZiZS05YzNiNGZkYjZmODIiLCJpYXQiOjE3NTMwODI5OTgsImV4cCI6MTc1MzI1NTc5OH0.-ee7VE7YNXMUqsNSoCubQ-X2a1t70dUlPszJ1n8GYx4`
+        const url = `${WS_URL}?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxMDQ0N2U0NS04ZTgwLTQ3MGEtYmZiZS05YzNiNGZkYjZmODIiLCJpYXQiOjE3NTMzMzUyMDUsImV4cCI6MTc1MzUwODAwNX0.t_cHE_hPckcv6W2Mw_jLj2YQclztHoXcfvb_1USBNRk`
         this.socket = new WebSocket(url);
 
         this.socket.onopen = () => {
@@ -91,6 +91,7 @@ export class CanvasEngine{
 
     setActiveTool(tool: ToolType) {
         this.activeTool = tool;
+        this.updateCursor()
     }
     initMouseHandlers(){
         this.canvas.addEventListener("mousedown", this.mouseDownHandler)
@@ -281,24 +282,6 @@ export class CanvasEngine{
                 this.ctx.closePath();
                 this.ctx.stroke();
             }else if(activeTool === "draw"){
-                // if (!this.isDrawingFree || this.activeTool !== "draw") return;
-                // const rect = this.canvas.getBoundingClientRect();
-                // const x = e.clientX - rect.left;
-                // const y = e.clientY - rect.top;
-                // // alert(x)
-                // // alert(y)
-                // // console.log("move " + x + y)
-
-                // this.currentFreePoints.push({ x, y });
-
-                // this.ctx.beginPath();
-                // this.ctx.lineTo(x, y);
-                // this.ctx.strokeStyle = "white";
-                // this.ctx.lineWidth = 2;
-                // this.ctx.lineJoin = "round";
-                // this.ctx.lineCap = "round";
-                // this.ctx.stroke();
-                // this.ctx.closePath();
                 if (!this.isDrawingFree || this.activeTool !== "draw") return;
 
                 const rect = this.canvas.getBoundingClientRect();
@@ -601,4 +584,35 @@ export class CanvasEngine{
     ){
 
     }
+
+    updateCursor() {
+        switch (this.activeTool) {
+            case "eraser":
+                this.canvas.style.cursor = "none";
+                break;
+            default:
+                this.canvas.style.cursor = "crosshair";
+        }
+    }
 }
+
+/*
+const canvas = document.createElement("canvas");
+canvas.width = 16;
+canvas.height = 16;
+const ctx = canvas.getContext("2d");
+
+// Draw a red circle with gray stroke
+ctx.fillStyle = "red";
+ctx.strokeStyle = "gray";
+ctx.lineWidth = 1;
+ctx.beginPath();
+ctx.arc(8, 8, 6, 0, Math.PI * 2);
+ctx.fill();
+ctx.stroke();
+
+const dataURL = canvas.toDataURL();
+this.canvas.style.cursor = `url(${dataURL}) 0 0, auto`;
+
+
+*/
